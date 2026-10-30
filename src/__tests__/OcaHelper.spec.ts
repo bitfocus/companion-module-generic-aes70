@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { OcaHelper } from '../OcaHelper.js'
-import { OCA_CLASS_NAMES } from '../consts/aes70-constants.js'
+import { OCA_CLASS_IDS, OCA_CLASS_NAMES } from '../consts/aes70-constants.js'
 import {
 	OcaFilterParametric,
 	OcaGain,
@@ -23,6 +23,7 @@ import {
 	OcaNetworkSignalChannel,
 	OcaRoot,
 } from 'aes70/src/controller/ControlClasses.js'
+import * as ControlClasses from 'aes70/src/controller/ControlClasses.js'
 import { ObjectBase } from 'aes70/src/controller/object_base.js'
 import { CloseError } from 'aes70'
 import { OcaSensorReadingState } from 'aes70/src/types/OcaSensorReadingState.js'
@@ -215,6 +216,65 @@ describe('determineClass', () => {
 	it('recurses into arrays, processing every element', () => {
 		helper.determineClass([makeObj(OcaGain, 1), makeObj(OcaMute, 2)])
 		expect(events).toEqual(['OcaWorker', 'OcaGain', 'OcaWorker', 'OcaMute'])
+	})
+})
+
+// ---------------------------------------------------------------------------
+// Every aes70 control class
+// ---------------------------------------------------------------------------
+
+type ControlClass = (new (ono: number, device: any) => ObjectBase) & { ClassName: string; ClassID: string }
+
+/**
+ * Every control class aes70 exports. The DeusO docs, which the class list was first written from,
+ * cover AES70.js 1.1 and miss 21 classes aes70 2.x has. An object of a class the module doesn't
+ * list is filed under its nearest listed ancestor, so a missing class fails nothing but this.
+ * Filtered as `unknown`, because aes70's typings leave out the static ClassName and ClassID.
+ */
+const AES70_CLASSES = (Object.values(ControlClasses) as unknown[]).filter(
+	(value): value is ControlClass =>
+		typeof value === 'function' && typeof (value as { ClassID?: unknown }).ClassID === 'string',
+)
+
+/** The module's name for an aes70 class. Only the block factory differs, named as the DeusO docs name it. */
+const moduleNameOf = (Cls: ControlClass): string =>
+	Cls.ClassName === 'OcaBlockFactoryAgent' ? OCA_CLASS_NAMES.OcaBlockFactory : Cls.ClassName
+
+describe('every aes70 control class', () => {
+	it('is found', () => {
+		// So a broken filter can't pass every test below by matching nothing
+		expect(AES70_CLASSES.length).toBeGreaterThanOrEqual(119)
+	})
+
+	it.each(AES70_CLASSES.map((Cls) => [Cls.ClassName, Cls] as const))(
+		'%s is registered and dispatched as its own class',
+		async (_name, Cls) => {
+			const helper = new OcaHelper()
+			const events: string[] = []
+			const originalEmit = helper.emit.bind(helper) as (...args: unknown[]) => boolean
+			vi.spyOn(helper, 'emit').mockImplementation((eventName: string | symbol, ...args: unknown[]) => {
+				events.push(String(eventName))
+				return originalEmit(eventName, ...args)
+			})
+			const obj = makeObj(Cls, 1)
+
+			await helper.loadRoleMap(new Map<string, unknown>([['Obj', obj]]))
+			expect(helper.getEntry('Obj')?.className).toBe(moduleNameOf(Cls))
+			events.length = 0
+			helper.determineClass(obj)
+			expect(events.at(-1)).toBe(moduleNameOf(Cls))
+		},
+	)
+
+	it.each(AES70_CLASSES.map((Cls) => [Cls.ClassName, Cls] as const))('%s has its class ID', (_name, Cls) => {
+		const ids: Record<string, string> = OCA_CLASS_IDS
+		expect(ids[moduleNameOf(Cls)]).toBe(OcaHelper.classIdToDotted(Cls.ClassID))
+	})
+
+	it('lists no class aes70 no longer has', () => {
+		const known = new Set(AES70_CLASSES.map(moduleNameOf))
+		const listed = Object.values(OCA_CLASS_NAMES).filter((name) => name !== OCA_CLASS_NAMES.ObjectBase)
+		expect(listed.filter((name) => !known.has(name))).toEqual([])
 	})
 })
 

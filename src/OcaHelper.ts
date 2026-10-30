@@ -13,8 +13,13 @@ import {
 	OcaBooleanActuator,
 	OcaBooleanSensor,
 	OcaCodingManager,
+	OcaCommandSet,
+	OcaCommandSetAgent,
 	OcaControlNetwork,
+	OcaCounterNotifier,
 	OcaCurrentSensor,
+	OcaDataset,
+	OcaDatasetWorker,
 	OcaDelay,
 	OcaDelayExtended,
 	OcaDeviceManager,
@@ -37,6 +42,7 @@ import {
 	OcaFrequencySensor,
 	OcaGain,
 	OcaGainSensor,
+	OcaGroup,
 	OcaGrouper,
 	OcaIdentificationActuator,
 	OcaIdentificationSensor,
@@ -49,16 +55,25 @@ import {
 	OcaInt64Sensor,
 	OcaInt8Actuator,
 	OcaInt8Sensor,
+	OcaJsonActuator,
+	OcaJsonSensor,
 	OcaLevelSensor,
 	OcaLibraryManager,
+	OcaLockManager,
+	OcaLog,
 	OcaManager,
 	OcaMatrix,
 	OcaMediaClock,
 	OcaMediaClock3,
 	OcaMediaClockManager,
+	OcaMediaRecorderPlayer,
+	OcaMediaTransportApplication,
 	OcaMediaTransportNetwork,
+	OcaMediaTransportSessionAgent,
 	OcaMute,
 	OcaNetwork,
+	OcaNetworkApplication,
+	OcaNetworkInterface,
 	OcaNetworkManager,
 	OcaNetworkSignalChannel,
 	OcaNumericObserver,
@@ -67,14 +82,18 @@ import {
 	OcaPhysicalPosition,
 	OcaPolarity,
 	OcaPowerManager,
+	OcaPowerSensor,
 	OcaPowerSupply,
+	OcaProgram,
 	OcaRamper,
 	OcaRoot,
+	OcaSamplingRateConverter,
 	OcaSecurityManager,
 	OcaSensor,
 	OcaSignalGenerator,
 	OcaSignalInput,
 	OcaSignalOutput,
+	OcaStateSensor,
 	OcaStreamConnector,
 	OcaStreamNetwork,
 	OcaStringActuator,
@@ -82,7 +101,9 @@ import {
 	OcaSubscriptionManager,
 	OcaSummingPoint,
 	OcaSwitch,
+	OcaTaskAgent,
 	OcaTaskManager,
+	OcaTaskScheduler,
 	OcaTemperatureActuator,
 	OcaTemperatureSensor,
 	OcaTimeIntervalSensor,
@@ -140,6 +161,7 @@ export interface DetermineOcaClassEvents {
 	OcaTemperatureActuator: [obj: OcaTemperatureActuator]
 	OcaIdentificationActuator: [obj: OcaIdentificationActuator]
 	OcaSummingPoint: [obj: OcaSummingPoint]
+	OcaSamplingRateConverter: [obj: OcaSamplingRateConverter]
 	OcaBasicActuator: [obj: OcaBasicActuator]
 	OcaBooleanActuator: [obj: OcaBooleanActuator]
 	OcaInt8Actuator: [obj: OcaInt8Actuator]
@@ -154,6 +176,7 @@ export interface DetermineOcaClassEvents {
 	OcaFloat64Actuator: [obj: OcaFloat64Actuator]
 	OcaStringActuator: [obj: OcaStringActuator]
 	OcaBitstringActuator: [obj: OcaBitstringActuator]
+	OcaJsonActuator: [obj: OcaJsonActuator]
 	// --- Sensors ---
 	OcaSensor: [obj: OcaSensor]
 	OcaLevelSensor: [obj: OcaLevelSensor]
@@ -166,6 +189,8 @@ export interface DetermineOcaClassEvents {
 	OcaCurrentSensor: [obj: OcaCurrentSensor]
 	OcaImpedanceSensor: [obj: OcaImpedanceSensor]
 	OcaGainSensor: [obj: OcaGainSensor]
+	OcaPowerSensor: [obj: OcaPowerSensor]
+	OcaStateSensor: [obj: OcaStateSensor]
 	OcaBasicSensor: [obj: OcaBasicSensor]
 	OcaBooleanSensor: [obj: OcaBooleanSensor]
 	OcaInt8Sensor: [obj: OcaInt8Sensor]
@@ -180,10 +205,13 @@ export interface DetermineOcaClassEvents {
 	OcaFloat64Sensor: [obj: OcaFloat64Sensor]
 	OcaStringSensor: [obj: OcaStringSensor]
 	OcaBitstringSensor: [obj: OcaBitstringSensor]
+	OcaJsonSensor: [obj: OcaJsonSensor]
 	// --- Workers (structural) ---
 	OcaBlock: [obj: OcaBlock]
 	OcaBlockFactory: [obj: OcaBlockFactoryAgent]
 	OcaMatrix: [obj: OcaMatrix]
+	OcaDatasetWorker: [obj: OcaDatasetWorker]
+	OcaMediaRecorderPlayer: [obj: OcaMediaRecorderPlayer]
 	// --- Agents ---
 	OcaAgent: [obj: OcaAgent]
 	OcaGrouper: [obj: OcaGrouper]
@@ -194,10 +222,25 @@ export interface DetermineOcaClassEvents {
 	OcaMediaClock3: [obj: OcaMediaClock3]
 	OcaTimeSource: [obj: OcaTimeSource]
 	OcaPhysicalPosition: [obj: OcaPhysicalPosition]
+	OcaTaskAgent: [obj: OcaTaskAgent]
+	OcaTaskScheduler: [obj: OcaTaskScheduler]
+	OcaCounterNotifier: [obj: OcaCounterNotifier]
+	OcaMediaTransportSessionAgent: [obj: OcaMediaTransportSessionAgent]
+	OcaGroup: [obj: OcaGroup]
+	OcaCommandSetAgent: [obj: OcaCommandSetAgent]
 	// --- Networks ---
 	OcaApplicationNetwork: [obj: OcaApplicationNetwork]
 	OcaControlNetwork: [obj: OcaControlNetwork]
 	OcaMediaTransportNetwork: [obj: OcaMediaTransportNetwork]
+	// --- Network interfaces and applications ---
+	OcaNetworkInterface: [obj: OcaNetworkInterface]
+	OcaNetworkApplication: [obj: OcaNetworkApplication]
+	OcaMediaTransportApplication: [obj: OcaMediaTransportApplication]
+	// --- Datasets ---
+	OcaDataset: [obj: OcaDataset]
+	OcaLog: [obj: OcaLog]
+	OcaProgram: [obj: OcaProgram]
+	OcaCommandSet: [obj: OcaCommandSet]
 	// --- Managers ---
 	OcaManager: [obj: OcaManager]
 	OcaDeviceManager: [obj: OcaDeviceManager]
@@ -213,6 +256,7 @@ export interface DetermineOcaClassEvents {
 	OcaTaskManager: [obj: OcaTaskManager]
 	OcaCodingManager: [obj: OcaCodingManager]
 	OcaDiagnosticManager: [obj: OcaDiagnosticManager]
+	OcaLockManager: [obj: OcaLockManager]
 	// --- Deprecated v1 classes ---
 	OcaNetworkSignalChannel: [obj: OcaNetworkSignalChannel]
 	OcaNetwork: [obj: OcaNetwork]
@@ -624,6 +668,14 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 				this.emit('OcaNetworkSignalChannel', obj)
 				return
 			}
+			if (obj instanceof OcaMediaRecorderPlayer) {
+				this.emit('OcaMediaRecorderPlayer', obj)
+				return
+			}
+			if (obj instanceof OcaDatasetWorker) {
+				this.emit('OcaDatasetWorker', obj)
+				return
+			}
 			return
 		}
 
@@ -648,6 +700,22 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 			this.emit('OcaApplicationNetwork', obj)
 			return
 		}
+		if (obj instanceof OcaNetworkInterface) {
+			this.emit('OcaNetworkInterface', obj)
+			return
+		}
+		if (obj instanceof OcaMediaTransportApplication) {
+			this.emit('OcaMediaTransportApplication', obj)
+			return
+		}
+		if (obj instanceof OcaNetworkApplication) {
+			this.emit('OcaNetworkApplication', obj)
+			return
+		}
+		if (obj instanceof OcaDataset) {
+			this._emitDataset(obj)
+			return
+		}
 
 		this.emit('OcaRoot', obj)
 	}
@@ -669,6 +737,8 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 			if (obj instanceof OcaBlock) return OCA_CLASS_NAMES.OcaBlock
 			if (obj instanceof OcaMatrix) return OCA_CLASS_NAMES.OcaMatrix
 			if (obj instanceof OcaNetworkSignalChannel) return OCA_CLASS_NAMES.OcaNetworkSignalChannel
+			if (obj instanceof OcaMediaRecorderPlayer) return OCA_CLASS_NAMES.OcaMediaRecorderPlayer
+			if (obj instanceof OcaDatasetWorker) return OCA_CLASS_NAMES.OcaDatasetWorker
 			return OCA_CLASS_NAMES.OcaWorker
 		}
 		if (obj instanceof OcaAgent) return this._resolveAgentName(obj)
@@ -676,7 +746,18 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		if (obj instanceof OcaMediaTransportNetwork) return OCA_CLASS_NAMES.OcaMediaTransportNetwork
 		if (obj instanceof OcaControlNetwork) return OCA_CLASS_NAMES.OcaControlNetwork
 		if (obj instanceof OcaApplicationNetwork) return OCA_CLASS_NAMES.OcaApplicationNetwork
+		if (obj instanceof OcaNetworkInterface) return OCA_CLASS_NAMES.OcaNetworkInterface
+		if (obj instanceof OcaMediaTransportApplication) return OCA_CLASS_NAMES.OcaMediaTransportApplication
+		if (obj instanceof OcaNetworkApplication) return OCA_CLASS_NAMES.OcaNetworkApplication
+		if (obj instanceof OcaDataset) return this._resolveDatasetName(obj)
 		return OCA_CLASS_NAMES.OcaRoot
+	}
+
+	private _resolveDatasetName(obj: OcaDataset): OcaClassName {
+		if (obj instanceof OcaCommandSet) return OCA_CLASS_NAMES.OcaCommandSet
+		if (obj instanceof OcaProgram) return OCA_CLASS_NAMES.OcaProgram
+		if (obj instanceof OcaLog) return OCA_CLASS_NAMES.OcaLog
+		return OCA_CLASS_NAMES.OcaDataset
 	}
 
 	private _resolveActuatorName(obj: OcaActuator): OcaClassName {
@@ -702,6 +783,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		if (obj instanceof OcaTemperatureActuator) return OCA_CLASS_NAMES.OcaTemperatureActuator
 		if (obj instanceof OcaIdentificationActuator) return OCA_CLASS_NAMES.OcaIdentificationActuator
 		if (obj instanceof OcaSummingPoint) return OCA_CLASS_NAMES.OcaSummingPoint
+		if (obj instanceof OcaSamplingRateConverter) return OCA_CLASS_NAMES.OcaSamplingRateConverter
 		if (obj instanceof OcaBasicActuator) {
 			if (obj instanceof OcaBooleanActuator) return OCA_CLASS_NAMES.OcaBooleanActuator
 			if (obj instanceof OcaInt8Actuator) return OCA_CLASS_NAMES.OcaInt8Actuator
@@ -716,6 +798,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 			if (obj instanceof OcaFloat64Actuator) return OCA_CLASS_NAMES.OcaFloat64Actuator
 			if (obj instanceof OcaStringActuator) return OCA_CLASS_NAMES.OcaStringActuator
 			if (obj instanceof OcaBitstringActuator) return OCA_CLASS_NAMES.OcaBitstringActuator
+			if (obj instanceof OcaJsonActuator) return OCA_CLASS_NAMES.OcaJsonActuator
 			return OCA_CLASS_NAMES.OcaBasicActuator
 		}
 		return OCA_CLASS_NAMES.OcaActuator
@@ -734,6 +817,8 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		if (obj instanceof OcaCurrentSensor) return OCA_CLASS_NAMES.OcaCurrentSensor
 		if (obj instanceof OcaImpedanceSensor) return OCA_CLASS_NAMES.OcaImpedanceSensor
 		if (obj instanceof OcaGainSensor) return OCA_CLASS_NAMES.OcaGainSensor
+		if (obj instanceof OcaPowerSensor) return OCA_CLASS_NAMES.OcaPowerSensor
+		if (obj instanceof OcaStateSensor) return OCA_CLASS_NAMES.OcaStateSensor
 		if (obj instanceof OcaBasicSensor) {
 			if (obj instanceof OcaBooleanSensor) return OCA_CLASS_NAMES.OcaBooleanSensor
 			if (obj instanceof OcaInt8Sensor) return OCA_CLASS_NAMES.OcaInt8Sensor
@@ -748,6 +833,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 			if (obj instanceof OcaFloat64Sensor) return OCA_CLASS_NAMES.OcaFloat64Sensor
 			if (obj instanceof OcaStringSensor) return OCA_CLASS_NAMES.OcaStringSensor
 			if (obj instanceof OcaBitstringSensor) return OCA_CLASS_NAMES.OcaBitstringSensor
+			if (obj instanceof OcaJsonSensor) return OCA_CLASS_NAMES.OcaJsonSensor
 			return OCA_CLASS_NAMES.OcaBasicSensor
 		}
 		return OCA_CLASS_NAMES.OcaSensor
@@ -762,6 +848,12 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		if (obj instanceof OcaMediaClock3) return OCA_CLASS_NAMES.OcaMediaClock3
 		if (obj instanceof OcaTimeSource) return OCA_CLASS_NAMES.OcaTimeSource
 		if (obj instanceof OcaPhysicalPosition) return OCA_CLASS_NAMES.OcaPhysicalPosition
+		if (obj instanceof OcaTaskAgent) return OCA_CLASS_NAMES.OcaTaskAgent
+		if (obj instanceof OcaTaskScheduler) return OCA_CLASS_NAMES.OcaTaskScheduler
+		if (obj instanceof OcaCounterNotifier) return OCA_CLASS_NAMES.OcaCounterNotifier
+		if (obj instanceof OcaMediaTransportSessionAgent) return OCA_CLASS_NAMES.OcaMediaTransportSessionAgent
+		if (obj instanceof OcaGroup) return OCA_CLASS_NAMES.OcaGroup
+		if (obj instanceof OcaCommandSetAgent) return OCA_CLASS_NAMES.OcaCommandSetAgent
 		// --- Deprecated v1 classes (aes70.js models these as OcaAgent subclasses) ---
 		if (obj instanceof OcaBlockFactoryAgent) return OCA_CLASS_NAMES.OcaBlockFactory
 		if (obj instanceof OcaStreamConnector) return OCA_CLASS_NAMES.OcaStreamConnector
@@ -785,6 +877,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		if (obj instanceof OcaTaskManager) return OCA_CLASS_NAMES.OcaTaskManager
 		if (obj instanceof OcaCodingManager) return OCA_CLASS_NAMES.OcaCodingManager
 		if (obj instanceof OcaDiagnosticManager) return OCA_CLASS_NAMES.OcaDiagnosticManager
+		if (obj instanceof OcaLockManager) return OCA_CLASS_NAMES.OcaLockManager
 		return OCA_CLASS_NAMES.OcaManager
 	}
 
@@ -815,6 +908,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaTemperatureActuator) this.emit(OCA_CLASS_NAMES.OcaTemperatureActuator, obj)
 		else if (obj instanceof OcaIdentificationActuator) this.emit(OCA_CLASS_NAMES.OcaIdentificationActuator, obj)
 		else if (obj instanceof OcaSummingPoint) this.emit(OCA_CLASS_NAMES.OcaSummingPoint, obj)
+		else if (obj instanceof OcaSamplingRateConverter) this.emit(OCA_CLASS_NAMES.OcaSamplingRateConverter, obj)
 		else if (obj instanceof OcaBasicActuator) this._emitBasicActuator(obj)
 		else this.emit(OCA_CLASS_NAMES.OcaActuator, obj)
 	}
@@ -833,6 +927,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaFloat64Actuator) this.emit(OCA_CLASS_NAMES.OcaFloat64Actuator, obj)
 		else if (obj instanceof OcaStringActuator) this.emit(OCA_CLASS_NAMES.OcaStringActuator, obj)
 		else if (obj instanceof OcaBitstringActuator) this.emit(OCA_CLASS_NAMES.OcaBitstringActuator, obj)
+		else if (obj instanceof OcaJsonActuator) this.emit(OCA_CLASS_NAMES.OcaJsonActuator, obj)
 		else this.emit(OCA_CLASS_NAMES.OcaBasicActuator, obj)
 	}
 
@@ -848,6 +943,8 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaCurrentSensor) this.emit(OCA_CLASS_NAMES.OcaCurrentSensor, obj)
 		else if (obj instanceof OcaImpedanceSensor) this.emit(OCA_CLASS_NAMES.OcaImpedanceSensor, obj)
 		else if (obj instanceof OcaGainSensor) this.emit(OCA_CLASS_NAMES.OcaGainSensor, obj)
+		else if (obj instanceof OcaPowerSensor) this.emit(OCA_CLASS_NAMES.OcaPowerSensor, obj)
+		else if (obj instanceof OcaStateSensor) this.emit(OCA_CLASS_NAMES.OcaStateSensor, obj)
 		else if (obj instanceof OcaBasicSensor) this._emitBasicSensor(obj)
 		else this.emit(OCA_CLASS_NAMES.OcaSensor, obj)
 	}
@@ -866,6 +963,7 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaFloat64Sensor) this.emit(OCA_CLASS_NAMES.OcaFloat64Sensor, obj)
 		else if (obj instanceof OcaStringSensor) this.emit(OCA_CLASS_NAMES.OcaStringSensor, obj)
 		else if (obj instanceof OcaBitstringSensor) this.emit(OCA_CLASS_NAMES.OcaBitstringSensor, obj)
+		else if (obj instanceof OcaJsonSensor) this.emit(OCA_CLASS_NAMES.OcaJsonSensor, obj)
 		else this.emit(OCA_CLASS_NAMES.OcaBasicSensor, obj)
 	}
 
@@ -878,6 +976,12 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaMediaClock3) this.emit(OCA_CLASS_NAMES.OcaMediaClock3, obj)
 		else if (obj instanceof OcaTimeSource) this.emit(OCA_CLASS_NAMES.OcaTimeSource, obj)
 		else if (obj instanceof OcaPhysicalPosition) this.emit(OCA_CLASS_NAMES.OcaPhysicalPosition, obj)
+		else if (obj instanceof OcaTaskAgent) this.emit(OCA_CLASS_NAMES.OcaTaskAgent, obj)
+		else if (obj instanceof OcaTaskScheduler) this.emit(OCA_CLASS_NAMES.OcaTaskScheduler, obj)
+		else if (obj instanceof OcaCounterNotifier) this.emit(OCA_CLASS_NAMES.OcaCounterNotifier, obj)
+		else if (obj instanceof OcaMediaTransportSessionAgent) this.emit(OCA_CLASS_NAMES.OcaMediaTransportSessionAgent, obj)
+		else if (obj instanceof OcaGroup) this.emit(OCA_CLASS_NAMES.OcaGroup, obj)
+		else if (obj instanceof OcaCommandSetAgent) this.emit(OCA_CLASS_NAMES.OcaCommandSetAgent, obj)
 		// --- Deprecated v1 classes (aes70.js models these as OcaAgent subclasses) ---
 		else if (obj instanceof OcaBlockFactoryAgent) this.emit('OcaBlockFactory', obj)
 		else if (obj instanceof OcaStreamConnector) this.emit('OcaStreamConnector', obj)
@@ -901,7 +1005,15 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 		else if (obj instanceof OcaTaskManager) this.emit(OCA_CLASS_NAMES.OcaTaskManager, obj)
 		else if (obj instanceof OcaCodingManager) this.emit(OCA_CLASS_NAMES.OcaCodingManager, obj)
 		else if (obj instanceof OcaDiagnosticManager) this.emit(OCA_CLASS_NAMES.OcaDiagnosticManager, obj)
+		else if (obj instanceof OcaLockManager) this.emit(OCA_CLASS_NAMES.OcaLockManager, obj)
 		else this.emit(OCA_CLASS_NAMES.OcaManager, obj)
+	}
+
+	private _emitDataset(obj: OcaDataset): void {
+		if (obj instanceof OcaCommandSet) this.emit(OCA_CLASS_NAMES.OcaCommandSet, obj)
+		else if (obj instanceof OcaProgram) this.emit(OCA_CLASS_NAMES.OcaProgram, obj)
+		else if (obj instanceof OcaLog) this.emit(OCA_CLASS_NAMES.OcaLog, obj)
+		else this.emit(OCA_CLASS_NAMES.OcaDataset, obj)
 	}
 
 	// -------------------------------------------------------------------------
@@ -1656,6 +1768,9 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	static isOcaSummingPoint(obj: unknown): obj is OcaSummingPoint {
 		return obj instanceof OcaSummingPoint && obj.ClassName === OCA_CLASS_NAMES.OcaSummingPoint
 	}
+	static isOcaSamplingRateConverter(obj: unknown): obj is OcaSamplingRateConverter {
+		return obj instanceof OcaSamplingRateConverter && obj.ClassName === OCA_CLASS_NAMES.OcaSamplingRateConverter
+	}
 	static isOcaBasicActuator(obj: unknown): obj is OcaBasicActuator {
 		return obj instanceof OcaBasicActuator && obj.ClassName === OCA_CLASS_NAMES.OcaBasicActuator
 	}
@@ -1698,6 +1813,9 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	static isOcaBitstringActuator(obj: unknown): obj is OcaBitstringActuator {
 		return obj instanceof OcaBitstringActuator && obj.ClassName === OCA_CLASS_NAMES.OcaBitstringActuator
 	}
+	static isOcaJsonActuator(obj: unknown): obj is OcaJsonActuator {
+		return obj instanceof OcaJsonActuator && obj.ClassName === OCA_CLASS_NAMES.OcaJsonActuator
+	}
 	static isOcaSensor(obj: unknown): obj is OcaSensor {
 		return obj instanceof OcaSensor && obj.ClassName === OCA_CLASS_NAMES.OcaSensor
 	}
@@ -1730,6 +1848,12 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	}
 	static isOcaGainSensor(obj: unknown): obj is OcaGainSensor {
 		return obj instanceof OcaGainSensor && obj.ClassName === OCA_CLASS_NAMES.OcaGainSensor
+	}
+	static isOcaPowerSensor(obj: unknown): obj is OcaPowerSensor {
+		return obj instanceof OcaPowerSensor && obj.ClassName === OCA_CLASS_NAMES.OcaPowerSensor
+	}
+	static isOcaStateSensor(obj: unknown): obj is OcaStateSensor {
+		return obj instanceof OcaStateSensor && obj.ClassName === OCA_CLASS_NAMES.OcaStateSensor
 	}
 	static isOcaBasicSensor(obj: unknown): obj is OcaBasicSensor {
 		return obj instanceof OcaBasicSensor && obj.ClassName === OCA_CLASS_NAMES.OcaBasicSensor
@@ -1773,6 +1897,9 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	static isOcaBitstringSensor(obj: unknown): obj is OcaBitstringSensor {
 		return obj instanceof OcaBitstringSensor && obj.ClassName === OCA_CLASS_NAMES.OcaBitstringSensor
 	}
+	static isOcaJsonSensor(obj: unknown): obj is OcaJsonSensor {
+		return obj instanceof OcaJsonSensor && obj.ClassName === OCA_CLASS_NAMES.OcaJsonSensor
+	}
 	static isOcaBlock(obj: unknown): obj is OcaBlock {
 		return obj instanceof OcaBlock && obj.ClassName === OCA_CLASS_NAMES.OcaBlock
 	}
@@ -1781,6 +1908,12 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	}
 	static isOcaMatrix(obj: unknown): obj is OcaMatrix {
 		return obj instanceof OcaMatrix && obj.ClassName === OCA_CLASS_NAMES.OcaMatrix
+	}
+	static isOcaDatasetWorker(obj: unknown): obj is OcaDatasetWorker {
+		return obj instanceof OcaDatasetWorker && obj.ClassName === OCA_CLASS_NAMES.OcaDatasetWorker
+	}
+	static isOcaMediaRecorderPlayer(obj: unknown): obj is OcaMediaRecorderPlayer {
+		return obj instanceof OcaMediaRecorderPlayer && obj.ClassName === OCA_CLASS_NAMES.OcaMediaRecorderPlayer
 	}
 	static isOcaAgent(obj: unknown): obj is OcaAgent {
 		return obj instanceof OcaAgent && obj.ClassName === OCA_CLASS_NAMES.OcaAgent
@@ -1809,6 +1942,26 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	static isOcaPhysicalPosition(obj: unknown): obj is OcaPhysicalPosition {
 		return obj instanceof OcaPhysicalPosition && obj.ClassName === OCA_CLASS_NAMES.OcaPhysicalPosition
 	}
+	static isOcaTaskAgent(obj: unknown): obj is OcaTaskAgent {
+		return obj instanceof OcaTaskAgent && obj.ClassName === OCA_CLASS_NAMES.OcaTaskAgent
+	}
+	static isOcaTaskScheduler(obj: unknown): obj is OcaTaskScheduler {
+		return obj instanceof OcaTaskScheduler && obj.ClassName === OCA_CLASS_NAMES.OcaTaskScheduler
+	}
+	static isOcaCounterNotifier(obj: unknown): obj is OcaCounterNotifier {
+		return obj instanceof OcaCounterNotifier && obj.ClassName === OCA_CLASS_NAMES.OcaCounterNotifier
+	}
+	static isOcaMediaTransportSessionAgent(obj: unknown): obj is OcaMediaTransportSessionAgent {
+		return (
+			obj instanceof OcaMediaTransportSessionAgent && obj.ClassName === OCA_CLASS_NAMES.OcaMediaTransportSessionAgent
+		)
+	}
+	static isOcaGroup(obj: unknown): obj is OcaGroup {
+		return obj instanceof OcaGroup && obj.ClassName === OCA_CLASS_NAMES.OcaGroup
+	}
+	static isOcaCommandSetAgent(obj: unknown): obj is OcaCommandSetAgent {
+		return obj instanceof OcaCommandSetAgent && obj.ClassName === OCA_CLASS_NAMES.OcaCommandSetAgent
+	}
 	static isOcaApplicationNetwork(obj: unknown): obj is OcaApplicationNetwork {
 		return obj instanceof OcaApplicationNetwork && obj.ClassName === OCA_CLASS_NAMES.OcaApplicationNetwork
 	}
@@ -1817,6 +1970,27 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	}
 	static isOcaMediaTransportNetwork(obj: unknown): obj is OcaMediaTransportNetwork {
 		return obj instanceof OcaMediaTransportNetwork && obj.ClassName === OCA_CLASS_NAMES.OcaMediaTransportNetwork
+	}
+	static isOcaNetworkInterface(obj: unknown): obj is OcaNetworkInterface {
+		return obj instanceof OcaNetworkInterface && obj.ClassName === OCA_CLASS_NAMES.OcaNetworkInterface
+	}
+	static isOcaNetworkApplication(obj: unknown): obj is OcaNetworkApplication {
+		return obj instanceof OcaNetworkApplication && obj.ClassName === OCA_CLASS_NAMES.OcaNetworkApplication
+	}
+	static isOcaMediaTransportApplication(obj: unknown): obj is OcaMediaTransportApplication {
+		return obj instanceof OcaMediaTransportApplication && obj.ClassName === OCA_CLASS_NAMES.OcaMediaTransportApplication
+	}
+	static isOcaDataset(obj: unknown): obj is OcaDataset {
+		return obj instanceof OcaDataset && obj.ClassName === OCA_CLASS_NAMES.OcaDataset
+	}
+	static isOcaLog(obj: unknown): obj is OcaLog {
+		return obj instanceof OcaLog && obj.ClassName === OCA_CLASS_NAMES.OcaLog
+	}
+	static isOcaProgram(obj: unknown): obj is OcaProgram {
+		return obj instanceof OcaProgram && obj.ClassName === OCA_CLASS_NAMES.OcaProgram
+	}
+	static isOcaCommandSet(obj: unknown): obj is OcaCommandSet {
+		return obj instanceof OcaCommandSet && obj.ClassName === OCA_CLASS_NAMES.OcaCommandSet
 	}
 	static isOcaManager(obj: unknown): obj is OcaManager {
 		return obj instanceof OcaManager && obj.ClassName === OCA_CLASS_NAMES.OcaManager
@@ -1859,6 +2033,9 @@ export class OcaHelper extends EventEmitter<DetermineOcaClassEvents & OcaHelperI
 	}
 	static isOcaDiagnosticManager(obj: unknown): obj is OcaDiagnosticManager {
 		return obj instanceof OcaDiagnosticManager && obj.ClassName === OCA_CLASS_NAMES.OcaDiagnosticManager
+	}
+	static isOcaLockManager(obj: unknown): obj is OcaLockManager {
+		return obj instanceof OcaLockManager && obj.ClassName === OCA_CLASS_NAMES.OcaLockManager
 	}
 	static isOcaNetworkSignalChannel(obj: unknown): obj is OcaNetworkSignalChannel {
 		return obj instanceof OcaNetworkSignalChannel && obj.ClassName === OCA_CLASS_NAMES.OcaNetworkSignalChannel
