@@ -1,6 +1,6 @@
 {
 	"name": "generic-aes70",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"main": "dist/main.js",
 	"type": "module",
 	"scripts": {
@@ -23,7 +23,7 @@
 		"url": "git+https://github.com/bitfocus/companion-module-generic-aes70.git"
 	},
 	"engines": {
-		"node": "^26.7",
+		"node": "^26.13",
 		"yarn": "^4"
 	},
 	"dependencies": {
