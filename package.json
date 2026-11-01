@@ -29,15 +29,15 @@
 	"dependencies": {
 		"@companion-module/base": "~2.2.2",
 		"aes70": "^2.0.21",
-		"es-toolkit": "^1.53.0",
-		"ws": "^8.22.0"
+		"es-toolkit": "^1.53.1",
+		"ws": "^8.22.1"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^3.2.0",
 		"@types/node": "^26.6.6",
 		"@types/ws": "^8.18.2",
 		"@vitest/coverage-v8": "5.0.5",
-		"eslint": "^10.13.0",
+		"eslint": "^10.14.0",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
 		"prettier": "^3.9.10",
