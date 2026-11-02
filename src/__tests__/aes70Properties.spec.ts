@@ -1,15 +1,25 @@
 import { describe, it, expect } from 'vitest'
+import * as ControlClasses from 'aes70/src/controller/ControlClasses.js'
 import {
 	OcaDynamics,
 	OcaFilterParametric,
 	OcaGain,
 	OcaInt64Actuator,
+	OcaMediaRecorderPlayer,
 	OcaMute,
 	OcaSignalGenerator,
 	OcaStringActuator,
 	OcaSwitch,
+	type OcaRoot,
 } from 'aes70/src/controller/ControlClasses.js'
-import { methodPairFor, settablePropertiesOf, structFieldFor, type SettableProperty } from '../aes70Properties.js'
+import {
+	CLASS_COMMANDS,
+	commandsFor,
+	methodPairFor,
+	settablePropertiesOf,
+	structFieldFor,
+	type SettableProperty,
+} from '../aes70Properties.js'
 
 /**
  * Built against real aes70 classes. Input types come from aes70's encoders, an
@@ -94,6 +104,56 @@ describe('methodPairFor', () => {
 	it('claims nothing for a property with a real setter, or a class without the methods', () => {
 		expect(methodPairFor(make(OcaSignalGenerator), 'Level')).toBeUndefined()
 		expect(methodPairFor(make(OcaFilterParametric), 'Generating')).toBeUndefined()
+	})
+})
+
+describe('commandsFor', () => {
+	const make = <T>(Cls: new (ono: number, dev: typeof inertDevice) => T): T => new Cls(1, inertDevice)
+
+	// Pinned because the set was asked for by name
+	it('offers a recorder/player its transport and a task agent its start, stop, reset and clear', () => {
+		expect(CLASS_COMMANDS).toEqual({
+			OcaMediaRecorderPlayer: [
+				{ method: 'Play', label: 'Play' },
+				{ method: 'Record', label: 'Record' },
+				{ method: 'Stop', label: 'Stop' },
+				{ method: 'Reset', label: 'Reset' },
+				{ method: 'Close', label: 'Close' },
+			],
+			OcaTaskAgent: [
+				{ method: 'ActionStart', label: 'Start' },
+				{ method: 'ActionStop', label: 'Stop' },
+				{ method: 'ActionReset', label: 'Reset' },
+				{ method: 'ActionClear', label: 'Clear' },
+			],
+		})
+	})
+
+	// Through real aes70 objects, so a command aes70 renames, or one that takes arguments, fails here
+	it('sends each command as the method aes70 names, with no parameters', async () => {
+		for (const [className, commands] of Object.entries(CLASS_COMMANDS)) {
+			const sent: { debugName: string; params: number }[] = []
+			const device = {
+				...inertDevice,
+				send_command: async (cmd: { param_count: number }, _types: unknown, _cb: unknown, debugName: string) => {
+					sent.push({ debugName, params: cmd.param_count })
+					return Promise.resolve()
+				},
+			}
+			const Cls = (ControlClasses as unknown as Record<string, new (ono: number, dev: unknown) => OcaRoot>)[className]
+			const obj = new Cls(1, device)
+
+			expect(commandsFor(obj)).toEqual(commands)
+			for (const { method } of commands) await (obj as unknown as Record<string, () => Promise<void>>)[method]()
+			expect(sent).toEqual(commands.map(({ method }) => ({ debugName: `${className}.${method}`, params: 0 })))
+		}
+	})
+
+	it('offers nothing to a class without commands, or a command the object lacks', () => {
+		expect(commandsFor(make(OcaMute))).toEqual([])
+		const player = make(OcaMediaRecorderPlayer)
+		;(player as unknown as Record<string, unknown>).Close = undefined
+		expect(commandsFor(player).map(({ method }) => method)).toEqual(['Play', 'Record', 'Stop', 'Reset'])
 	})
 })
 

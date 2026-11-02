@@ -99,6 +99,60 @@ export function methodPairFor(obj: OcaRoot, property: string): MethodPair | unde
 	return typeof methods[pair.on] === 'function' && typeof methods[pair.off] === 'function' ? pair : undefined
 }
 
+/** A method an action calls with no arguments, and the label it goes by in the action's dropdown. */
+export interface Command {
+	readonly method: string
+	readonly label: string
+}
+
+/**
+ * Methods taking no arguments that an action calls outright, keyed by class: commands, where the
+ * method pairs above stand for one boolean. A recorder/player's transport drives a state of five
+ * values, and a task agent's run a task through its states, so neither is a property to set.
+ *
+ * An explicit list for the same reason as the method pairs. Open, ActionPrepare and ActionRun are
+ * left out because they take arguments a button can't sensibly supply: a dataset's object number,
+ * an execution parameter blob. Without Open, Play and Record only work on a session something else
+ * has opened. Any method missing from here can't be called, whatever an expression says.
+ */
+export const CLASS_COMMANDS = {
+	OcaMediaRecorderPlayer: [
+		{ method: 'Play', label: 'Play' },
+		// Overwrites the record/play window from the current position to its end, as any record button would
+		{ method: 'Record', label: 'Record' },
+		{ method: 'Stop', label: 'Stop' },
+		{ method: 'Reset', label: 'Reset' },
+		{ method: 'Close', label: 'Close' },
+	],
+	OcaTaskAgent: [
+		{ method: 'ActionStart', label: 'Start' },
+		{ method: 'ActionStop', label: 'Stop' },
+		// Back to Ready, keeping the program, so Start runs it again
+		{ method: 'ActionReset', label: 'Reset' },
+		// Forgets the program, back to NotPrepared. Nothing here can prepare one again, so after this
+		// Start fails until something else does
+		{ method: 'ActionClear', label: 'Clear' },
+	],
+} as const satisfies Readonly<Record<string, readonly Command[]>>
+
+/** The classes with commands. */
+export type CommandClassName = keyof typeof CLASS_COMMANDS
+
+export function isCommandClass(className: string): className is CommandClassName {
+	return Object.hasOwn(CLASS_COMMANDS, className)
+}
+
+/**
+ * The commands `obj` takes, keeping only those it really carries, as methodPairFor does. Keyed by the
+ * object's own class, so a subclass doesn't inherit commands it may not mean the same way.
+ */
+export function commandsFor(obj: OcaRoot): readonly Command[] {
+	const className = (obj as unknown as { ClassName?: string }).ClassName
+	if (className === undefined || !isCommandClass(className)) return []
+	const methods = obj as unknown as Record<string, unknown>
+	return CLASS_COMMANDS[className].filter((command) => typeof methods[command.method] === 'function')
+}
+
 /**
  * Properties held as a struct where one field is the thing an operator sets, keyed by class and
  * property. A dynamics threshold is an OcaDBr: a level in dB and the reference it is measured from.

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import type { CompanionActionDefinitions } from '@companion-module/base'
-import { OcaMute } from 'aes70/src/controller/ControlClasses.js'
+import { OcaMediaRecorderPlayer, OcaMute, OcaTaskAgent } from 'aes70/src/controller/ControlClasses.js'
 import { OcaMuteState } from 'aes70/src/types/OcaMuteState.js'
 import { OcaStatus } from 'aes70/src/types/OcaStatus.js'
 import { RemoteError } from 'aes70/src/controller/remote_error.js'
@@ -254,5 +254,158 @@ describe('Set Property action on an object without the property', () => {
 				signal: new AbortController().signal,
 			}),
 		).rejects.toBe(error)
+	})
+})
+
+describe('Run Command action', () => {
+	type ActionEvent = { id: string; controlId: string; actionId: string; options: Record<string, unknown> }
+	type Definition = {
+		options: { id: string; default?: unknown; choices?: { id: string | number; label: string }[] }[]
+		callback: (action: ActionEvent, context: { signal: AbortSignal }) => Promise<void>
+	}
+
+	let definitions: CompanionActionDefinitions<ActionSchema>
+	/** The commands each object's device was sent, by aes70's name for the method. */
+	let sent: { target: number; debugName: string; params: number }[]
+	let reply: () => Promise<unknown>
+
+	/** A real aes70 object whose device records what it is sent, with property sync stubbed to report `reported`. */
+	function make<T extends OcaMute | OcaMediaRecorderPlayer | OcaTaskAgent>(
+		Cls: new (ono: number, device: ConstructorParameters<typeof OcaMute>[1]) => T,
+		ono: number,
+		reported: [name: string, value: unknown][],
+	): T {
+		const device = {
+			send_command: vi.fn(
+				async (cmd: { target: number; param_count: number }, _types: unknown, _cb: unknown, debugName: string) => {
+					sent.push({ target: cmd.target, debugName, params: cmd.param_count })
+					return reply()
+				},
+			),
+			add_subscription: vi.fn(),
+			remove_subscription: vi.fn(),
+		}
+		const obj = new Cls(ono, device as unknown as ConstructorParameters<typeof OcaMute>[1])
+		;(obj as unknown as { GetPropertySync: unknown }).GetPropertySync = () => ({
+			sync: async (): Promise<void> => undefined,
+			forEach: (cb: (value: unknown, name: string) => void): void => {
+				for (const [name, value] of reported) cb(value, name)
+			},
+			Dispose: (): undefined => undefined,
+		})
+		return obj
+	}
+
+	beforeEach(async () => {
+		sent = []
+		reply = async () => undefined
+		const helper = new OcaHelper()
+		const setActionDefinitions: Mock<(definitions: CompanionActionDefinitions<ActionSchema>) => void> = vi.fn()
+		const self = { ocaHelper: helper, setActionDefinitions } as unknown as ModuleInstance
+		await helper.loadRoleMap(
+			new Map<string, unknown>([
+				['PLAYER', make(OcaMediaRecorderPlayer, 7, [['TrackCount', 2]])],
+				['TASKS', make(OcaTaskAgent, 8, [['Blocked', false]])],
+			]),
+		)
+		sent = []
+		await UpdateActions(self)
+		const last = setActionDefinitions.mock.lastCall?.[0]
+		if (!last) throw new Error('No actions were defined')
+		definitions = last
+	})
+
+	const definitionOf = (key: keyof ActionSchema): Definition => {
+		const built = definitions[key]
+		if (!built) throw new Error(`No ${key} action was defined`)
+		return built as unknown as Definition
+	}
+
+	const run = async (key: keyof ActionSchema, options: Record<string, unknown>): Promise<void> =>
+		definitionOf(key).callback(
+			{ id: 'a1', controlId: 'bank:1:1', actionId: key, options },
+			{ signal: new AbortController().signal },
+		)
+
+	it("offers each class's commands for each of its objects, defaulting to the first", () => {
+		const player = definitionOf('run_command_OcaMediaRecorderPlayer')
+		expect(player.options).toMatchObject([
+			{ id: 'objectId', choices: [{ id: 'PLAYER', label: 'PLAYER' }], default: 'PLAYER' },
+			{
+				id: 'command',
+				choices: [
+					{ id: 'Play', label: 'Play' },
+					{ id: 'Record', label: 'Record' },
+					{ id: 'Stop', label: 'Stop' },
+					{ id: 'Reset', label: 'Reset' },
+					{ id: 'Close', label: 'Close' },
+				],
+				default: 'Play',
+			},
+		])
+		expect(definitionOf('run_command_OcaTaskAgent').options[1]).toMatchObject({
+			choices: [
+				{ id: 'ActionStart', label: 'Start' },
+				{ id: 'ActionStop', label: 'Stop' },
+				{ id: 'ActionReset', label: 'Reset' },
+				{ id: 'ActionClear', label: 'Clear' },
+			],
+			default: 'ActionStart',
+		})
+	})
+
+	it('sends the chosen command to the chosen object, with no parameters', async () => {
+		await run('run_command_OcaMediaRecorderPlayer', { objectId: 'PLAYER', command: 'Stop' })
+		await run('run_command_OcaTaskAgent', { objectId: 'TASKS', command: 'ActionStart' })
+
+		expect(sent).toEqual([
+			{ target: 7, debugName: 'OcaMediaRecorderPlayer.Stop', params: 0 },
+			{ target: 8, debugName: 'OcaTaskAgent.ActionStart', params: 0 },
+		])
+	})
+
+	// An expression can give the option any string, and most of aes70's methods take arguments or destroy something
+	it('sends nothing for a method that is not one of the commands, whatever the option says', async () => {
+		await expect(run('run_command_OcaMediaRecorderPlayer', { objectId: 'PLAYER', command: 'Open' })).rejects.toThrow(
+			"'Open' is not a command 'PLAYER' takes. Aborting action a1",
+		)
+		// A command, but another class's
+		await expect(run('run_command_OcaTaskAgent', { objectId: 'TASKS', command: 'Play' })).rejects.toThrow(
+			"'Play' is not a command 'TASKS' takes",
+		)
+		// A command of this class, but sent at an object of another
+		await expect(run('run_command_OcaMediaRecorderPlayer', { objectId: 'TASKS', command: 'Play' })).rejects.toThrow(
+			"'Play' is not a command 'TASKS' takes",
+		)
+		expect(sent).toEqual([])
+	})
+
+	it('names the object and command when the device says the object does not implement it', async () => {
+		reply = async () => Promise.reject(new RemoteError(OcaStatus.NotImplemented, undefined))
+
+		await expect(run('run_command_OcaMediaRecorderPlayer', { objectId: 'PLAYER', command: 'Reset' })).rejects.toThrow(
+			"'PLAYER' does not implement 'Reset'. Aborting action a1",
+		)
+	})
+
+	it('passes any other device error through as it is', async () => {
+		const error = new RemoteError(OcaStatus.InvalidRequest, undefined)
+		reply = async () => Promise.reject(error)
+
+		await expect(run('run_command_OcaTaskAgent', { objectId: 'TASKS', command: 'ActionStop' })).rejects.toBe(error)
+	})
+
+	it('defines no Run Command action for a class without commands, or one the device lacks', async () => {
+		const helper = new OcaHelper()
+		const setActionDefinitions: Mock<(definitions: CompanionActionDefinitions<ActionSchema>) => void> = vi.fn()
+		const self = { ocaHelper: helper, setActionDefinitions } as unknown as ModuleInstance
+		await helper.loadRoleMap(new Map<string, unknown>([['Mute1', make(OcaMute, 1, [['State', OcaMuteState.Muted]])]]))
+		await UpdateActions(self)
+
+		const built = setActionDefinitions.mock.lastCall?.[0]
+		// Present but undefined, which tells Companion the action isn't offered
+		expect(built).toHaveProperty('run_command_OcaMediaRecorderPlayer', undefined)
+		expect(built).toHaveProperty('run_command_OcaTaskAgent', undefined)
+		expect(built?.set_property_OcaMute).toBeDefined()
 	})
 })

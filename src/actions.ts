@@ -17,7 +17,17 @@ import {
 } from './utils.js'
 import { type OcaClassName, OCA_CLASS_NAMES } from './consts/aes70-constants.js'
 import { enumChoices, enumExpressionDescription, isAes70Enum } from './enums.js'
-import { methodPairFor, settablePropertiesOf, structFieldFor, type SettableProperty } from './aes70Properties.js'
+import {
+	CLASS_COMMANDS,
+	commandsFor,
+	isCommandClass,
+	methodPairFor,
+	settablePropertiesOf,
+	structFieldFor,
+	type CommandClassName,
+	type SettableProperty,
+} from './aes70Properties.js'
+import type { OcaRoot } from 'aes70/src/controller/ControlClasses.js'
 
 type SetPropertyActionKey = `set_property_${OcaClassName}`
 
@@ -34,8 +44,19 @@ type SetPropertyAction = {
 
 type SetPropertyActionSchema = CompanionActionSchema<SetPropertyOptions, void>
 
+type RunCommandActionKey = `run_command_${CommandClassName}`
+
+type RunCommandOptions = {
+	objectId: string
+	command: string
+}
+
+type RunCommandActionSchema = CompanionActionSchema<RunCommandOptions, void>
+
 export type ActionSchema = {
 	[K in SetPropertyActionKey]: SetPropertyAction
+} & {
+	[K in RunCommandActionKey]: { options: RunCommandOptions }
 }
 
 /**
@@ -113,7 +134,73 @@ function completeActionSchema(
 		const key: SetPropertyActionKey = `set_property_${className}`
 		schema[key] = partial[key] // undefined when not built for this class
 	}
+	for (const className of Object.keys(CLASS_COMMANDS) as CommandClassName[]) {
+		const key: RunCommandActionKey = `run_command_${className}`
+		schema[key] = partial[key]
+	}
 	return schema as CompanionActionDefinitions<ActionSchema>
+}
+
+/**
+ * An action calling one of the commands objects of `className` take, from CLASS_COMMANDS. It reads
+ * nothing from the object, so unlike Set Property it doesn't register with it.
+ */
+function runCommandAction(
+	self: ModuleInstance,
+	className: OcaClassName,
+	objectChoices: DropdownChoice[],
+	sample: OcaRoot,
+): CompanionActionDefinition<RunCommandActionSchema> | undefined {
+	const commandChoices: DropdownChoice<string>[] = commandsFor(sample).map(({ method, label }) => ({
+		id: method,
+		label,
+	}))
+	if (commandChoices.length === 0) return undefined
+	return {
+		name: `${ocaClassNameToLabel(className)} - Run Command`,
+		options: [
+			{
+				type: 'dropdown',
+				id: 'objectId',
+				label: 'Control Object',
+				choices: objectChoices,
+				default: objectChoices[0]?.id,
+				allowCustom: false,
+				allowInvalidValues: false,
+			},
+			{
+				type: 'dropdown',
+				id: 'command',
+				label: 'Command',
+				choices: commandChoices,
+				default: commandChoices[0].id,
+			},
+		],
+		hasResult: false,
+		callback: async (action) => {
+			const { objectId, command } = action.options
+			const entry = self.ocaHelper.getEntry(objectId)
+			if (!entry) {
+				throw new Error(`No entry found for objectId ${objectId}. Aborting action ${action.id}`)
+			}
+			// Checked against the table, since an expression can give the option any string at all
+			const known = commandsFor(entry.obj).find((candidate) => candidate.method === command)
+			if (!known) {
+				throw new Error(`'${command}' is not a command '${objectId}' takes. Aborting action ${action.id}`)
+			}
+			const method = (entry.obj as unknown as Record<string, () => Promise<void>>)[known.method]
+			try {
+				await method.call(entry.obj)
+			} catch (err) {
+				if (isNotImplemented(err)) {
+					throw new Error(`'${objectId}' does not implement '${command}'. Aborting action ${action.id}`, {
+						cause: err,
+					})
+				}
+				throw err
+			}
+		},
+	}
 }
 
 export async function UpdateActions(self: ModuleInstance): Promise<void> {
@@ -127,6 +214,10 @@ export async function UpdateActions(self: ModuleInstance): Promise<void> {
 		const [samplePath] = self.ocaHelper.getByClass(className)
 		const sample = samplePath === undefined ? undefined : self.ocaHelper.getEntry(samplePath)
 		if (!sample) continue
+
+		if (isCommandClass(className)) {
+			actionDefinitions[`run_command_${className}`] = runCommandAction(self, className, objectChoices, sample.obj)
+		}
 
 		// Value inputs follow aes70's class definition, so they stay the same however many properties are
 		// discovered on the device, and every action has a stored value for each of them from creation

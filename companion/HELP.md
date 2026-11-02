@@ -18,6 +18,15 @@ Until the module is connected, no actions or feedbacks are defined - as such off
 | `Property`       | Dropdown listing the supported properties for that class           |
 | `Value`          | The value to set on the selected property                          |
 
+Media recorder/players and task agents also get a **Run Command** action, which takes a `Control Object` and a `Command`:
+
+| Class                   | Commands                         |
+| ----------------------- | -------------------------------- |
+| `Media Recorder Player` | Play, Record, Stop, Reset, Close |
+| `Task Agent`            | Start, Stop, Reset, Clear        |
+
+Commands that need arguments (`Open`, and a task agent's `Prepare` and `Run`) aren't available.
+
 #### Feedbacks
 
 | Option              | Description                                                                                                                                                                                                                                                                |
@@ -76,4 +85,5 @@ Give each one a value and the ends of its range. A Get Property feedback with `U
 - Connections via UDP and WebSockets are untested.
 - Actions only support setting properties with simple data types (`string | number | boolean`), including enums with dropdowns. There are two exceptions: a signal generator's `Generating` is set by calling its `Start` and `Stop` methods, and a dynamics `Threshold` sets its level while keeping the reference the device measures it from.
 - Enum dropdowns list every value AES70 defines, not only the ones a device supports. A device may refuse an unsupported value, or quietly substitute another, for example by resetting an unsupported filter shape to PEQ.
+- The Run Command action has not yet been tried on a device.
 - Presets for signal generators, classical filters, pan, frequency actuators and extended delays have not yet been tried on a device.
