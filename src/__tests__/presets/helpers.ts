@@ -14,6 +14,7 @@ import {
 	OcaLevelSensor,
 	OcaMute,
 	OcaPolarity,
+	OcaStateSensor,
 	OcaStringActuator,
 	OcaSwitch,
 	type OcaRoot,
@@ -99,6 +100,19 @@ export const booleanSensor = (ono: number): OcaRoot =>
 	makeObject(OcaBooleanSensor, ono, [
 		['Enabled', true],
 		['Reading', false],
+	])
+/** A state sensor whose states run from 1, so its first name is state 1's, reading its second state. */
+export const stateSensor = (ono: number): OcaRoot =>
+	makeObject(OcaStateSensor, ono, [
+		['Enabled', true],
+		['State', 2],
+		['StateNames', ['IDLE', 'RUNNING', 'FAULT']],
+	])
+/** A state sensor that doesn't implement StateNames. */
+export const unnamedStateSensor = (ono: number): OcaRoot =>
+	makeObject(OcaStateSensor, ono, [
+		['Enabled', true],
+		['State', 0],
 	])
 /** A class no preset section covers, for checking that one on its own produces nothing. */
 export const stringActuator = (ono: number): OcaRoot =>

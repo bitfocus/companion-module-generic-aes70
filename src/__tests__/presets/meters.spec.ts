@@ -210,9 +210,10 @@ describe('meter presets', () => {
 	})
 
 	// Pinned because the set was asked for by name. OcaIdentificationSensor is deliberately absent: it
-	// signals an identify press as an event and has no Reading. aes70 also has an OcaPowerSensor, which
-	// this module's OCA_CLASS_NAMES doesn't carry, and whose Reading is four values (power, power factor
-	// and the power limits) rather than the [reading, min, max] the bar and label index into
+	// signals an identify press as an event and has no Reading. OcaPowerSensor is absent too: as of aes70
+	// 2.0.21 its Power and PowerFactor properties aren't tied to GetReading, its only getter, so neither
+	// can be read. GetReading also returns four values (power, power factor and the power limits) rather
+	// than the [reading, min, max] the bar and label index into
 	it('meters every numeric sensor class aes70 has a three-value Reading for', async () => {
 		expect(METER_CLASSES.map((meter) => meter.className)).toEqual([
 			'OcaLevelSensor',
