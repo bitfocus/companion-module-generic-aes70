@@ -14,6 +14,7 @@ import {
 	OcaLevelSensor,
 	OcaMute,
 	OcaPolarity,
+	OcaPowerSensor,
 	OcaStateSensor,
 	OcaStringActuator,
 	OcaSwitch,
@@ -100,6 +101,13 @@ export const booleanSensor = (ono: number): OcaRoot =>
 	makeObject(OcaBooleanSensor, ono, [
 		['Enabled', true],
 		['Reading', false],
+	])
+/** A power sensor, whose Power aes70 reads through GetReading from 2.0.22. */
+export const powerSensor = (ono: number): OcaRoot =>
+	makeObject(OcaPowerSensor, ono, [
+		['Enabled', true],
+		['Power', 120.5],
+		['PowerFactor', 0.92],
 	])
 /** A state sensor whose states run from 1, so its first name is state 1's, reading its second state. */
 export const stateSensor = (ono: number): OcaRoot =>

@@ -10,12 +10,19 @@ import { OcaPortClockMapEntry } from 'aes70/src/types/OcaPortClockMapEntry.js'
 import { OcaSamplingRateConverterType } from 'aes70/src/types/OcaSamplingRateConverterType.js'
 import { OcaStatus } from 'aes70/src/types/OcaStatus.js'
 import { RemoteError } from 'aes70/src/controller/remote_error.js'
-import { OcaFilterParametric, OcaLevelSensor } from 'aes70/src/controller/ControlClasses.js'
+import {
+	OcaFilterParametric,
+	OcaLevelSensor,
+	OcaMatrix,
+	OcaMediaRecorderPlayer,
+	OcaPowerSensor,
+} from 'aes70/src/controller/ControlClasses.js'
 import type { PropertyDescription } from '../OcaHelper.js'
 import type { ModuleConfig } from '../config.js'
 import {
 	abortable,
 	accessorName,
+	getterOf,
 	defaultPropertyName,
 	excitementEmoji,
 	formatLogValue,
@@ -453,5 +460,45 @@ describe('accessorName', () => {
 	it('has nothing for an unknown property, or an object with no accessors at all', () => {
 		expect(accessorName(make(OcaFilterParametric), 'Get', 'NotAProperty')).toBeUndefined()
 		expect(accessorName({}, 'Set', 'Frequency')).toBeUndefined()
+	})
+})
+
+describe('getterOf', () => {
+	const device = {
+		send_command: (): undefined => undefined,
+		add_subscription: (): undefined => undefined,
+		remove_subscription: (): undefined => undefined,
+	} as unknown as ConstructorParameters<typeof OcaFilterParametric>[1]
+	const make = <T>(Cls: new (ono: number, dev: typeof device) => T): T => new Cls(1, device)
+
+	it("finds a property's own getter, alias spellings included, with its value first", () => {
+		const filter = make(OcaFilterParametric)
+
+		expect(getterOf(filter, 'Frequency')).toEqual({ name: 'GetFrequency', index: 0 })
+		expect(getterOf(filter, 'InBandGain')).toEqual({ name: 'GetInbandGain', index: 0 })
+	})
+
+	// Declared by aes70 from 2.0.22. Pinned against the real classes, so an aes70 that moves them fails here
+	it('follows the getter aes70 declares for a property returned among other values', () => {
+		const sensor = make(OcaPowerSensor)
+		expect(sensor).not.toHaveProperty('GetPower')
+		expect(getterOf(sensor, 'Power')).toEqual({ name: 'GetReading', index: 0 })
+		expect(getterOf(sensor, 'PowerFactor')).toEqual({ name: 'GetReading', index: 1 })
+
+		expect(getterOf(make(OcaMediaRecorderPlayer), 'WindowEnd')).toEqual({ name: 'GetWindowRange', index: 1 })
+		expect(getterOf(make(OcaMatrix), 'ySize')).toEqual({ name: 'GetSize', index: 1 })
+	})
+
+	it('has nothing for an unknown property, a declared method the object lacks, or no accessors at all', () => {
+		expect(getterOf(make(OcaFilterParametric), 'NotAProperty')).toBeUndefined()
+		const sensor = make(OcaPowerSensor)
+		;(sensor as unknown as Record<string, unknown>).GetReading = undefined
+		expect(getterOf(sensor, 'Power')).toBeUndefined()
+		expect(getterOf({}, 'Frequency')).toBeUndefined()
+	})
+
+	// Setting one of several values a method takes would need the others, so setters don't follow
+	it("leaves accessorName's setter lookup alone, though aes70 declares indexed setters too", () => {
+		expect(accessorName(make(OcaMediaRecorderPlayer), 'Set', 'WindowStart')).toBeUndefined()
 	})
 })

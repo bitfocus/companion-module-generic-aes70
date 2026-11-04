@@ -11,6 +11,7 @@ import {
 	levelSensor,
 	makeHarness,
 	makeObject,
+	powerSensor,
 	type ControlClass,
 	type DefinitionShape,
 	type PresetEntry,
@@ -149,7 +150,7 @@ describe('meter presets', () => {
 		})
 	})
 
-	it('gives every meter class a group, with its own unit and colours, from one readable Reading', async () => {
+	it('gives every meter class a group, with its own unit and colours, from the property it reads', async () => {
 		const roleMap = METER_CLASSES.map(({ className, property }, i): [string, OcaRoot] => [
 			`${className}/1`,
 			makeObject(ControlClasses[className] as unknown as ControlClass, i + 1, [
@@ -186,10 +187,16 @@ describe('meter presets', () => {
 					? undefined
 					: { variableType: 'simple', variableName: 'meter_min', startupValue: meter.floor },
 			)
+			// The limits follow the reading, unless the class says where its getter puts them
+			const [minIndex, maxIndex] = meter.limits ?? [1, 2]
+			const reported = `$(local:level).values[${minIndex}]`
 			expect(bar.options.min, meter.className).toEqual({
 				isExpression: true,
-				value:
-					meter.floor === undefined ? '$(local:level).values[1]' : 'max($(local:meter_min), $(local:level).values[1])',
+				value: meter.floor === undefined ? reported : `max($(local:meter_min), ${reported})`,
+			})
+			expect(bar.options.max, meter.className).toEqual({
+				isExpression: true,
+				value: `$(local:level).values[${maxIndex}]`,
 			})
 			for (const variable of (preset.localVariables ?? []) as PresetEntry[]) {
 				if (variable.feedbackId) expectOptionsOffered(feedbacks[variable.feedbackId], variable.options)
@@ -209,12 +216,50 @@ describe('meter presets', () => {
 		])
 	})
 
+	// GetReading returns [power, power factor, min, max], so the bar's limits are the last two
+	it("meters a power sensor's power between the limits after its power factor, and shows the factor too", async () => {
+		const { presets } = await define([['AMP/PWR', powerSensor(1)]])
+		const preset = presets['meter_OcaPowerSensor_AMP/PWR']
+		if (preset?.type !== 'layered') throw new Error('No layered power sensor preset')
+
+		const bar = preset.elements.find((element) => element.id === 'meter')
+		if (bar?.type !== 'composite' || bar.elementId !== CompositeElementId.Meter) throw new Error('No meter')
+		expect(bar.options).toMatchObject({
+			level: { isExpression: true, value: '$(local:level).values[0]' },
+			min: { isExpression: true, value: '$(local:level).values[2]' },
+			max: { isExpression: true, value: '$(local:level).values[3]' },
+			scheme: 'custom',
+		})
+		expect(preset.localVariables).toEqual([
+			{
+				variableType: 'feedback',
+				variableName: 'level',
+				feedbackId: 'get_property_OcaPowerSensor',
+				options: { objectId: 'AMP/PWR', property: 'Power', sync: false },
+			},
+		])
+
+		const label = labelOf(preset) as { text: { value: string }; fontsize: number }
+		// A third line, so the smaller size
+		expect(label.fontsize).toBe(18)
+		// Run as JavaScript, which Companion's expression syntax also is for everything used here
+		const show = (values: unknown[]): unknown =>
+			// eslint-disable-next-line @typescript-eslint/no-implied-eval
+			new Function('level', 'isNumber', 'round', 'return ' + label.text.value.replaceAll('$(local:level)', 'level'))(
+				{ values },
+				(value: unknown) => typeof value === 'number',
+				Math.round,
+			)
+		expect(show([120.54, 0.9234, 0, 2000])).toBe('AMP/PWR\n120.5 W\nPF 0.92')
+		expect(show([2500, 1, 0, 5000])).toBe('AMP/PWR\n2.5 kW\nPF 1')
+		// Nothing under the role path until the reading arrives
+		expect(show([])).toBe('AMP/PWR\n\n')
+	})
+
 	// Pinned because the set was asked for by name. OcaIdentificationSensor is deliberately absent: it
-	// signals an identify press as an event and has no Reading. OcaPowerSensor is absent too: as of aes70
-	// 2.0.21 its Power and PowerFactor properties aren't tied to GetReading, its only getter, so neither
-	// can be read. GetReading also returns four values (power, power factor and the power limits) rather
-	// than the [reading, min, max] the bar and label index into
-	it('meters every numeric sensor class aes70 has a three-value Reading for', async () => {
+	// signals an identify press as an event and has no Reading. OcaPowerSensor reads Power rather than
+	// Reading, and only from aes70 2.0.22, which ties it to GetReading
+	it('meters every numeric sensor class aes70 has, plus the power sensor', async () => {
 		expect(METER_CLASSES.map((meter) => meter.className)).toEqual([
 			'OcaLevelSensor',
 			'OcaAudioLevelSensor',
@@ -223,6 +268,7 @@ describe('meter presets', () => {
 			'OcaTemperatureSensor',
 			'OcaVoltageSensor',
 			'OcaCurrentSensor',
+			'OcaPowerSensor',
 			'OcaImpedanceSensor',
 			'OcaGainSensor',
 			'OcaInt8Sensor',
@@ -236,7 +282,12 @@ describe('meter presets', () => {
 			'OcaFloat32Sensor',
 			'OcaFloat64Sensor',
 		])
-		// Every one of them reads the same property, so the group builder's check is the same for all
-		expect(METER_CLASSES.every((meter) => meter.property === 'Reading')).toBe(true)
+		// Every one of them but the power sensor reads Reading, and only it has limits that don't follow the reading
+		expect(METER_CLASSES.filter((meter) => meter.property !== 'Reading').map((meter) => meter.className)).toEqual([
+			'OcaPowerSensor',
+		])
+		expect(METER_CLASSES.filter((meter) => meter.limits !== undefined).map((meter) => meter.className)).toEqual([
+			'OcaPowerSensor',
+		])
 	})
 })

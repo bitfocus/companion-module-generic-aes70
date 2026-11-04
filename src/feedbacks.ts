@@ -15,10 +15,11 @@ import {
 	makePropChoices,
 	defaultPropertyName,
 	isNotImplemented,
-	accessorName,
+	getterOf,
 } from './utils.js'
 import { type OcaClassName, OCA_CLASS_NAMES } from './consts/aes70-constants.js'
 import { isAes70Enum } from './enums.js'
+import { Arguments } from 'aes70/src/controller/arguments.js'
 
 type GetPropertyFeedbackKey = `get_property_${OcaClassName}`
 
@@ -163,9 +164,10 @@ export async function UpdateFeedbacks(self: ModuleInstance): Promise<void> {
 					logger.debug(`property: ${property} not found in entry.properties, trying async getter`)
 				}
 
-				const getterName = accessorName(entry.obj, 'Get', property)
-				const getter = getterName && (entry.obj as unknown as Record<string, unknown>)[getterName]
-				if (typeof getter !== 'function') {
+				// The property's own getter, or the method aes70 says returns it among other values
+				const found = getterOf(entry.obj, property)
+				const getter = found && (entry.obj as unknown as Record<string, unknown>)[found.name]
+				if (!found || typeof getter !== 'function') {
 					logger.warn(
 						`${feedback.feedbackId}\\${feedback.id}: No getter for '${property}' found on object at '${objectId}'. Aborting feedback check ${feedback.id}`,
 					)
@@ -185,13 +187,13 @@ export async function UpdateFeedbacks(self: ModuleInstance): Promise<void> {
 					}
 					throw err
 				}
-				const safeValue = await makeSafeJsonValue(result, { awaitPromises: true })
+				// Synced, a getter returning several values gives just this property's, as aes70's own sync
+				// does. Anything else is the value itself, which may be a list
 				if (sync) {
-					const unwrappedValue = unwrapValue(safeValue)
-					if (Array.isArray(unwrappedValue)) return unwrappedValue[0]
-					return unwrappedValue
+					const value = result instanceof Arguments ? result.values[found.index] : result
+					return unwrapValue(await makeSafeJsonValue(value, { awaitPromises: true }))
 				}
-				return safeValue
+				return await makeSafeJsonValue(result, { awaitPromises: true })
 			},
 			unsubscribe: (feedback) => {
 				self.ocaHelper.removeFeedbackId(feedback.id)

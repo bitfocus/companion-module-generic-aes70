@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import type { CompanionFeedbackDefinitions, CompanionFeedbackValueEvent } from '@companion-module/base'
-import { OcaAudioLevelSensor, OcaGain } from 'aes70/src/controller/ControlClasses.js'
+import { OcaAudioLevelSensor, OcaGain, OcaPowerSensor, OcaSwitch } from 'aes70/src/controller/ControlClasses.js'
+import { Arguments } from 'aes70/src/controller/arguments.js'
 import { OcaSensorReadingState } from 'aes70/src/types/OcaSensorReadingState.js'
 import { OcaStatus } from 'aes70/src/types/OcaStatus.js'
 import { RemoteError } from 'aes70/src/controller/remote_error.js'
@@ -343,5 +344,91 @@ describe('Get Property feedback on an object without the property', () => {
 
 		await expect(check({ objectId: 'MIC/BQ0', property: 'Frequency', sync: false })).rejects.toBe(error)
 		expect(logs.warnings()).toEqual([])
+	})
+})
+
+describe('Get Property feedback on a getter returning several values', () => {
+	let helper: OcaHelper
+	let setFeedbackDefinitions: Mock<(definitions: CompanionFeedbackDefinitions<FeedbackSchema>) => void>
+
+	/** A real aes70 object whose property sync reports `reported`, and whose getters are stubbed as given. */
+	function make<T extends OcaPowerSensor | OcaSwitch>(
+		Cls: new (ono: number, device: ConstructorParameters<typeof OcaGain>[1]) => T,
+		reported: [name: string, value: unknown][],
+		getters: Record<string, unknown>,
+	): T {
+		const device = { send_command: vi.fn(), add_subscription: vi.fn(), remove_subscription: vi.fn() }
+		const obj = new Cls(1, device as unknown as ConstructorParameters<typeof OcaGain>[1])
+		;(obj as unknown as { GetPropertySync: unknown }).GetPropertySync = vi.fn(() => ({
+			sync: vi.fn().mockResolvedValue(undefined),
+			forEach: vi.fn((cb: (value: unknown, name: string) => void) => {
+				for (const [name, value] of reported) cb(value, name)
+			}),
+			Dispose: vi.fn(),
+		}))
+		for (const [name, result] of Object.entries(getters)) {
+			;(obj as unknown as Record<string, unknown>)[name] = vi.fn().mockResolvedValue(result)
+		}
+		return obj
+	}
+
+	async function check(className: 'OcaPowerSensor' | 'OcaSwitch', options: GetPropertyOptions): Promise<unknown> {
+		const definition = setFeedbackDefinitions.mock.lastCall?.[0][`get_property_${className}`]
+		if (!definition) throw new Error(`No ${className} feedback was defined`)
+		return (definition as unknown as { callback: ValueFeedbackCallback }).callback(
+			{
+				type: 'value',
+				id: 'fb1',
+				controlId: 'bank:1:1',
+				feedbackId: `get_property_${className}`,
+				options,
+				previousOptions: null,
+			},
+			{ type: 'feedback', signal: new AbortController().signal },
+		)
+	}
+
+	async function load(roleMap: [string, unknown][]): Promise<void> {
+		helper = new OcaHelper()
+		setFeedbackDefinitions = vi.fn()
+		const self = { ocaHelper: helper, setFeedbackDefinitions } as unknown as ModuleInstance
+		await helper.loadRoleMap(new Map<string, unknown>(roleMap))
+		await UpdateFeedbacks(self)
+	}
+
+	// As of aes70 2.0.22, Power and PowerFactor have no getter of their own: they are the first two of
+	// what GetReading returns, followed by the power limits. Synced, PowerFactor is missing here, so the
+	// feedback falls back to the getter
+	const READING = new Arguments([120.5, 0.92, 0, 2000])
+	const powerSensor = (): OcaPowerSensor => make(OcaPowerSensor, [['Power', 120.5]], { GetReading: READING })
+
+	it('reads a property through the getter aes70 declares for it, whole without sync', async () => {
+		await load([['AMP/PWR', powerSensor()]])
+
+		await expect(check('OcaPowerSensor', { objectId: 'AMP/PWR', property: 'Power', sync: false })).resolves.toEqual({
+			values: [120.5, 0.92, 0, 2000],
+		})
+		await expect(
+			check('OcaPowerSensor', { objectId: 'AMP/PWR', property: 'PowerFactor', sync: false }),
+		).resolves.toEqual({ values: [120.5, 0.92, 0, 2000] })
+	})
+
+	it("gives just the property's own value with sync, from where the getter returns it", async () => {
+		await load([['AMP/PWR', powerSensor()]])
+
+		// Missing from the sync, so this is the getter's second value, not its first
+		await expect(check('OcaPowerSensor', { objectId: 'AMP/PWR', property: 'PowerFactor', sync: true })).resolves.toBe(
+			0.92,
+		)
+		await expect(check('OcaPowerSensor', { objectId: 'AMP/PWR', property: 'Power', sync: true })).resolves.toBe(120.5)
+	})
+
+	// A getter returning one value that is itself a list isn't several values to pick one from
+	it('gives the whole list with sync, where a getter returns a single list', async () => {
+		await load([['SDCARD/PLAY', make(OcaSwitch, [['Position', 0]], { GetPositionNames: ['ON', 'OFF', 'LOOP'] })]])
+
+		await expect(
+			check('OcaSwitch', { objectId: 'SDCARD/PLAY', property: 'PositionNames', sync: true }),
+		).resolves.toEqual(['ON', 'OFF', 'LOOP'])
 	})
 })

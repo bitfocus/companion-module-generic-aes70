@@ -8,7 +8,17 @@ import type { OcaModuleTypes } from '../types.js'
 import { OCA_CLASS_NAMES } from '../consts/aes70-constants.js'
 import { ocaClassNameToLabel } from '../utils.js'
 import { CompositeElementId, METER_DEFAULT_COLOR, METER_PADDING, METER_THICKNESS } from '../composites.js'
-import { classGroups, DIAL_COLORS, labelElements, METER_ID, numberWithUnit, templateText } from './consts.js'
+import {
+	classGroups,
+	DIAL_COLORS,
+	labelElements,
+	METER_ID,
+	numberWithUnit,
+	PROPERTY_LABEL_FONT_SIZE,
+	rounded,
+	templateText,
+	type UnitStep,
+} from './consts.js'
 
 /** The classes with meter presets. Add a class here and to METER_CLASSES to give it presets. */
 export type MeterClassName =
@@ -19,6 +29,7 @@ export type MeterClassName =
 	| typeof OCA_CLASS_NAMES.OcaTemperatureSensor
 	| typeof OCA_CLASS_NAMES.OcaVoltageSensor
 	| typeof OCA_CLASS_NAMES.OcaCurrentSensor
+	| typeof OCA_CLASS_NAMES.OcaPowerSensor
 	| typeof OCA_CLASS_NAMES.OcaImpedanceSensor
 	| typeof OCA_CLASS_NAMES.OcaGainSensor
 	| typeof OCA_CLASS_NAMES.OcaInt8Sensor
@@ -51,6 +62,24 @@ export interface MeterClass {
 	 * where the bar runs across the device's whole range.
 	 */
 	readonly floor?: number
+	/** Another unit the reading switches to past a threshold, as a rotary's do. */
+	readonly unitSteps?: readonly UnitStep[]
+	/**
+	 * Where the getter's result holds the reading's limits, for a getter that returns more than a
+	 * reading and its limits. Left out where they follow the reading, as `[reading, min, max]`.
+	 */
+	readonly limits?: readonly [min: number, max: number]
+	/** Another value the getter returns, shown on a line of its own after the reading. */
+	readonly secondary?: SecondaryValue
+}
+
+/** A value read alongside the reading, which the label shows but the bar doesn't. */
+export interface SecondaryValue {
+	/** Where it is in the getter's result. */
+	readonly index: number
+	/** Shown before the value. */
+	readonly prefix: string
+	readonly places: number
 }
 
 /** A reading that isn't a signal level is drawn plainly, in the same grey as a rotary's dial. */
@@ -61,6 +90,9 @@ const METER_PLAIN = { color: DIAL_COLORS.plain } as const
  * stops are fractions of the bar, across that whole range a nominal -18 dBFS would already read amber.
  */
 const METER_LEVEL = { unit: 'dB', floor: -60 } as const
+
+/** Watts become kilowatts at a thousand, which an amplifier's output reaches. */
+const KILOWATTS: UnitStep = { at: 1000, divisor: 1000, unit: 'kW', places: 2 }
 
 export const METER_CLASSES: readonly MeterClass[] = [
 	{ className: OCA_CLASS_NAMES.OcaLevelSensor, property: 'Reading', ...METER_LEVEL },
@@ -76,6 +108,17 @@ export const METER_CLASSES: readonly MeterClass[] = [
 	{ className: OCA_CLASS_NAMES.OcaTemperatureSensor, property: 'Reading', unit: '°C' },
 	{ className: OCA_CLASS_NAMES.OcaVoltageSensor, property: 'Reading', unit: 'V', ...METER_PLAIN },
 	{ className: OCA_CLASS_NAMES.OcaCurrentSensor, property: 'Reading', unit: 'A', ...METER_PLAIN },
+	// GetReading returns the power, its power factor, then the power's limits. The factor runs from 0
+	// to 1, with 1 for a purely resistive load. Readable from aes70 2.0.22, which ties Power to it
+	{
+		className: OCA_CLASS_NAMES.OcaPowerSensor,
+		property: 'Power',
+		unit: 'W',
+		unitSteps: [KILOWATTS],
+		limits: [2, 3],
+		secondary: { index: 1, prefix: 'PF', places: 2 },
+		...METER_PLAIN,
+	},
 	// aes70 describes the reading as a magnitude and a phase, but only the magnitude comes back as Reading
 	{ className: OCA_CLASS_NAMES.OcaImpedanceSensor, property: 'Reading', unit: 'Ω', ...METER_PLAIN },
 	// A dynamics element's instantaneous gain, so metering colours would read as headroom it isn't
@@ -106,9 +149,22 @@ const METER_LEVEL_VARIABLE = 'level'
 /** The bottom of the bar, for a class with a floor. */
 const METER_MIN_VARIABLE = 'meter_min'
 
-/** An expression for a meter's label: the object's role path, then its reading below, once it is known. */
-function meterLabel(rolePath: string, value: string, unit?: string): string {
-	return '`' + templateText(rolePath) + '\\n${' + numberWithUnit(value, METER_DECIMAL_PLACES, unit) + '}`'
+/**
+ * An expression for a meter's label: the object's role path, then its reading below, once it is known,
+ * then any secondary value below that.
+ */
+function meterLabel(meter: MeterClass, rolePath: string, value: string, result: (index: number) => string): string {
+	const lines = [
+		templateText(rolePath),
+		'${' + numberWithUnit(value, METER_DECIMAL_PLACES, meter.unit, meter.unitSteps) + '}',
+	]
+	const { secondary } = meter
+	if (secondary) {
+		const other = result(secondary.index)
+		const shown = '`' + secondary.prefix + ' ${' + rounded(other, secondary.places) + '}`'
+		lines.push('${isNumber(' + other + ') ? ' + shown + " : ''}")
+	}
+	return '`' + lines.join('\\n') + '`'
 }
 
 /**
@@ -126,8 +182,10 @@ function meterLabel(rolePath: string, value: string, unit?: string): string {
  */
 function meterPreset(meter: MeterClass, rolePath: string): CompanionLayeredButtonPresetDefinition<OcaModuleTypes> {
 	const { className, property, color } = meter
-	// Without sync the getter's result arrives whole, as { values: [reading, min, max] }
-	const [level, reported, max] = [0, 1, 2].map((index) => `$(local:${METER_LEVEL_VARIABLE}).values[${index}]`)
+	// Without sync the getter's result arrives whole, as { values: [reading, min, max] } for most classes
+	const result = (index: number): string => `$(local:${METER_LEVEL_VARIABLE}).values[${index}]`
+	const [minIndex, maxIndex] = meter.limits ?? [1, 2]
+	const [level, reported, max] = [0, minIndex, maxIndex].map(result)
 	const min = meter.floor === undefined ? reported : `max($(local:${METER_MIN_VARIABLE}), ${reported})`
 	return {
 		type: 'layered',
@@ -135,8 +193,10 @@ function meterPreset(meter: MeterClass, rolePath: string): CompanionLayeredButto
 		elements: [
 			// The label stops above the bar, so a long role path never runs under it
 			...labelElements(
-				{ isExpression: true, value: meterLabel(rolePath, level, meter.unit) },
+				{ isExpression: true, value: meterLabel(meter, rolePath, level, result) },
 				100 - METER_PADDING - METER_THICKNESS,
+				// Three lines want the smaller size, as a button naming its property does
+				meter.secondary ? PROPERTY_LABEL_FONT_SIZE : undefined,
 			),
 			{
 				type: 'composite',

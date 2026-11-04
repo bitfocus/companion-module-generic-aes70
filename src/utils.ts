@@ -435,9 +435,16 @@ export function isNotImplemented(err: unknown): boolean {
 	return err instanceof RemoteError && err.status === OcaStatus.NotImplemented
 }
 
+/** How aes70 declares a property's getter: a method name, or one value out of a method returning several. */
+type DeclaredAccessor = string | { name: string; index: number } | null | undefined
+
 /** An object carrying aes70's generated accessors, and the property table describing them. */
 type ObjectWithAccessors = Record<string, unknown> & {
-	get_properties?: () => { find_property?: (name: string) => { aliases?: readonly string[] | null } | undefined }
+	get_properties?: () => {
+		find_property?: (
+			name: string,
+		) => { aliases?: readonly string[] | null; accessors?: { get?: DeclaredAccessor } | null } | undefined
+	}
 }
 
 /**
@@ -460,4 +467,30 @@ export function accessorName(obj: unknown, prefix: 'Get' | 'Set', property: stri
 		if (typeof target[name] === 'function') return name
 	}
 	return undefined
+}
+
+/** The method reading a property, and where in what it returns the property's value is. */
+export interface Getter {
+	readonly name: string
+	/** 0 for a getter of its own, which returns the value first and any limits after it. */
+	readonly index: number
+}
+
+/**
+ * The method reading `property` on `obj`, or `undefined` where it has none. Mostly accessorName's
+ * `Get` method, but aes70 also declares a getter for a property that has none of its own name:
+ * either a method named otherwise, or one value out of a method returning several. OcaPowerSensor's
+ * Power and PowerFactor are the first two values GetReading returns, as of aes70 2.0.22.
+ *
+ * Only for reading. A declared setter can be the same sort of thing, but setting one value of a
+ * method that takes several would need the others, so accessorName's `Set` doesn't follow them.
+ */
+export function getterOf(obj: unknown, property: string): Getter | undefined {
+	const name = accessorName(obj, 'Get', property)
+	if (name !== undefined) return { name, index: 0 }
+
+	const target = obj as ObjectWithAccessors
+	const declared = target.get_properties?.()?.find_property?.(property)?.accessors?.get
+	const getter = typeof declared === 'string' ? { name: declared, index: 0 } : declared
+	return getter && typeof target[getter.name] === 'function' ? getter : undefined
 }
