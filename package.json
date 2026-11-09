@@ -29,8 +29,8 @@
 	"dependencies": {
 		"@companion-module/base": "~2.2.2",
 		"aes70": "^2.0.22",
-		"es-toolkit": "^1.53.1",
-		"ws": "^8.22.1"
+		"es-toolkit": "^1.53.2",
+		"ws": "^8.22.2"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^3.2.0",
@@ -44,7 +44,7 @@
 		"rimraf": "^6.1.4",
 		"typescript": "~6.0.3",
 		"typescript-eslint": "^8.72.1",
-		"vite": "^8.3.5",
+		"vite": "^8.3.6",
 		"vitest": "^5.1.0"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
